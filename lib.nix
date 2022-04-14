@@ -1,9 +1,9 @@
-{
+{ lib, self'lib }: {
   modules = {
     flake = ./module.nix;
   };
 
-  mkFlake = { lib, self'lib }: config: let
+  mkFlake = config: let
     eval = lib.evalModules {
       modules = [
         self'lib.modules.flake

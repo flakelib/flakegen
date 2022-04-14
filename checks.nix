@@ -17,13 +17,15 @@
     inherit generated;
     outputsNix = "inputs: { }";
     passAsFile = [ "outputsNix" ];
-    flakeslib = inputs.flakeslib;
+    flakelib = inputs.flakelib;
+    std = inputs.std;
     pkgs = path;
   } ''
     cat $generated > flake.nix
     cat $outputsNixPath > outputs.nix
     nix flake check \
-      --override-input flakeslib path:$flakeslib \
+      --override-input flakelib path:$flakelib \
+      --override-input std path:$std \
       --override-input nixpkgs path:$pkgs \
       --no-build
     mkdir $out

@@ -18,49 +18,64 @@
       sed -e "s|$placeholderToken|$replacement|" > $out
   '';
 
-  nix-check = { runCommand, nix2_4 ? nix, nix, lib }: let
-    args = lib.optionals (lib.versionAtLeast nix.version "2.4") [
-      "--extra-experimental-features" (lib.concatStringsSep " " [ "nix-command" "flakes" ])
-    ] ++ [
-      "--no-use-registries"
-    ];
-  in runCommand "nix-check" ''
-    mkdir -p $out/bin $out/share/nix-check
-    cp $envPath $out/share/nix-check/env
-    substituteAll $commandNix2Path $out/bin/nix
-    for basename in $(cd $nix/bin && echo nix-*); do
-      substituteAll $commandNixPath $out/bin/$basename
-    done
-  '' {
-    nix = nix2_4;
-    passAsFile = [ "env" "commandNix" "commandNix2" ];
+  nix-check = { runCommand, nix, lib }: with lib; let
+    nixString = v:
+      if v == true then "true"
+      else if v == false then "false"
+      else if isList v then toString (map nixString v)
+      else toString v;
+    nixConfig = {
+      experimental-features = [ "nix-command" "flakes" ];
+      use-registries = false;
+      #substitute = false;
+      accept-flake-config = true;
+      allow-symlinked-store = true;
+    };
+  in runCommand "nix-check" {
+    inherit nix;
+    passAsFile = [ "env" "commandNix" "commandNix2" "nixConfig" ];
+    nixConfig = concatStringsSep "\n" (mapAttrsToList (k: v: "${k} = ${nixString v}") nixConfig);
     env = ''
-      export XDG_CACHE_HOME=$TMPDIR/cache
-      export XDG_DATA_HOME=$TMPDIR/data
-      export XDG_CONFIG_HOME=$TMPDIR/config
-      NIX_CHECK_STORE=''${NIX_CHECK_STORE-$TMPDIR/nix-store}
+      NIX_CHECK_ROOT=$TMPDIR/nix-check
+      export XDG_CACHE_HOME=$NIX_CHECK_ROOT/cache
+      export XDG_DATA_HOME=$NIX_CHECK_ROOT/data
+      export XDG_CONFIG_HOME=$NIX_CHECK_ROOT/config
+      NIX_CHECK_STORE=$NIX_CHECK_ROOT/store
       if [[ ! -e $NIX_CHECK_STORE ]]; then
-        mkdir $NIX_CHECK_STORE
+        mkdir -p $NIX_CHECK_STORE
         ln -s $NIX_STORE/* $NIX_CHECK_STORE/
       fi
+      export NIX_REMOTE= \
+        NIX_STORE_DIR=$NIX_CHECK_STORE \
+        NIX_DATA_DIR=$NIX_CHECK_ROOT/share \
+        NIX_STATE_DIR=$NIX_CHECK_ROOT/state \
+        NIX_CONF_DIR=$NIX_CHECK_ROOT/etc \
+        NIX_LOG_DIR=$NIX_CHECK_ROOT/log \
+        NIX_USER_CONF_FILES=''${NIX_USER_CONF_FILES-}:@out@/share/nix-check/config
     '';
     commandNix = ''
       source @out@/share/nix-check/env
-      export NIX_STORE_DIR=$NIX_CHECK_STORE
       exec @nix@/bin/@basename@ "$@"
     '';
     commandNix2 = ''
       source @out@/share/nix-check/env
-      ARGS=(
-        --store "$NIX_CHECK_STORE"
-        ${lib.escapeShellArgs args}
-      )
+      ARGS=()
       if [[ ! -n ''${outputHash-} ]]; then
         ARGS+=(--offline)
       fi
-      exec @nix@/bin/nix "''${ARGS[@]}" "$@"
+      exec @nix@/bin/nix ''${ARGS[@]+"''${ARGS[@]}"} "$@"
     '';
-  };
+  } ''
+    mkdir -p $out/bin $out/share/nix-check
+    substituteAll $envPath $out/share/nix-check/env
+    ln -s $nix $out/share/nix-check/nix
+    cp $nixConfigPath $out/share/nix-check/config
+    substituteAll $commandNix2Path $out/bin/nix
+    for basename in $(cd $nix/bin && echo nix-*); do
+      substituteAll $commandNixPath $out/bin/$basename
+    done
+    chmod +x $out/bin/*
+  '';
 
   makeCas = { runCommand }: {
     drv

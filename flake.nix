@@ -1,7 +1,11 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
-    flakelib.url = "github:flakelib/fl";
+    flakelib = {
+      url = "github:flakelib/fl";
+      inputs.std.follows = "std";
+    };
+    std.url = "github:flakelib/std";
   };
   outputs = { flakelib, ... }@inputs: flakelib {
     inherit inputs;

@@ -13,7 +13,7 @@
     impure = true;
     environment = [ "CI_PLATFORM" ];
   };
-  flakegen-check = flake-check "flakegen" "flakegen";
+  flakegen-check = flake-check "flakegen" ".";
 in {
   name = "flakes.nix";
   ci.version = "nix2.4-broken";

@@ -3,12 +3,12 @@
     runCommand
   , nix-check
   , path
-  , lib'mkFlake
+  , lib'flakegen'mkFlake
   , self'generate
   , inputs
   }: let
     flakeConfig = removeAttrs (import ./flake.nix) [ "outputs" ];
-    flake = lib'mkFlake flakeConfig;
+    flake = lib'flakegen'mkFlake flakeConfig;
     generated = self'generate {
       inherit flake;
     };

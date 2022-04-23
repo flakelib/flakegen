@@ -34,6 +34,10 @@
   in runCommand "nix-check" {
     inherit nix;
     passAsFile = [ "env" "commandNix" "commandNix2" "nixConfig" ];
+    buildInputs = [ (getBin nix) ];
+    meta = {
+      inherit (nix.meta) platforms broken;
+    };
     nixConfig = concatStringsSep "\n" (mapAttrsToList (k: v: "${k} = ${nixString v}") nixConfig);
     env = ''
       NIX_CHECK_ROOT=$TMPDIR/nix-check

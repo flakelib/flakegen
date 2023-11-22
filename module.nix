@@ -88,19 +88,25 @@
       ];
     };
   };
-  outputsType = { config, ... }: {
+  outputsType = { options, config, ... }: {
     options = {
       import = mkOption {
         type = ty.str;
       };
 
+      contents = mkOption {
+        type = ty.str;
+      };
+
       out.attrs = mkOption {
-        type = attrTys;
+        type = ty.oneOf [ attrTys ty.str ];
       };
     };
 
-    config.out.attrs = {
-      inherit (config) import;
+    config = {
+      contents = mkIf options.import.isDefined
+        ''inputs: import ${config.import} inputs'';
+      out.attrs = mkIf options.contents.isDefined config.contents;
     };
   };
 in {

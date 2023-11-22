@@ -1,21 +1,21 @@
 {
   generate = { runCommand, nix-check, lib }: { flake }: let
     placeholderToken = 1337;
-    outputs =
-      if flake ? outputs.import then ''inputs: import ${flake.outputs.import} inputs''
-      else throw "unknown flake output";
+    hasOutputContents = lib.isString flake.outputs;
+    replaceOutputs = ''| sed -e "s|$placeholderToken|$replacement|"'';
+    replacement = lib.replaceStrings [ "&" "|" ''\'' "\n" ] [ ''\&'' ''\|'' ''\\'' ''\n'' ] flake.outputs;
   in runCommand "flake.nix" {
     passAsFile = [ "flake" ];
     nativeBuildInputs = [ nix-check ];
-    replacement = outputs;
+    replacement = lib.optionalString hasOutputContents replacement;
     inherit placeholderToken;
     flake = builtins.toJSON (removeAttrs flake [ "config" "options" ] // {
-      outputs = placeholderToken;
+      ${if hasOutputContents then "outputs" else null} = placeholderToken;
     });
   } ''
     nix eval --impure --expr \
-      "(builtins.fromJSON (builtins.readFile $flakePath))" |
-      sed -e "s|$placeholderToken|$replacement|" > $out
+    "(builtins.fromJSON (builtins.readFile $flakePath))" \
+      ${lib.optionalString hasOutputContents "${replaceOutputs} "}> $out
   '';
 
   nix-check = { runCommand, nix, lib }: with lib; let

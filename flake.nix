@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs";
+    nixpkgs = { };
     flakelib = {
       url = "github:flakelib/fl";
       inputs.std.follows = "std";
